@@ -23,6 +23,9 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "nodemon": "^2.0.14"
+    "@types/numjs": "^0.16.1",
+    "nodemon": "^2.0.14",
+    "nodeplotlib": "^0.7.6",
+    "numjs": "^0.16.1"
   }
 }

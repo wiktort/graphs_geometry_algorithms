@@ -5,17 +5,21 @@
     /* Projects */
 
     /* Language and Environment */
-    "target": "es5",                                     /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
+    "target": "ES2020",                                     /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
+    "lib": [
+      "ES2020"
+    ],
    
     /* Modules */
-    "module": "commonjs",                                /* Specify what module code is generated. */
+    "module": "ES2020",                                /* Specify what module code is generated. */
     "rootDir": "./src",                                  /* Specify the root folder within your source files. */
     "moduleResolution": "node",                         /* Specify how TypeScript looks up a file from a given module specifier. */
     "baseUrl": "src",
-    "sourceMap": true,                       
+    "sourceMap": true,                   
     
     /* JavaScript Support */
-   
+    "allowJs": true,
+  
     /* Emit */
     "outDir": "./dist",                                   /* Specify an output folder for all emitted files. */
    
@@ -31,6 +35,11 @@
     /* Completeness */
     "skipLibCheck": true                                /* Skip type checking all .d.ts files. */
   },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  },
   "exclude": [
     "**/node_modules",
     "**/.*/"
@@ -38,4 +47,5 @@
   "include": [
     "src"
   ],
+   
 }
