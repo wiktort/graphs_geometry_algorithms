@@ -1,7 +1,8 @@
 import { Plot, plot } from 'nodeplotlib';
 
+import { getX, getY } from '../helpers.ts';
+import { PointType } from '../types';
 import { testData } from './testData';
-import { PointType } from './types';
 
 /*
 Assumptions
@@ -15,6 +16,11 @@ type VertexDataType = {
   vectorSense: VectorSenseType;
   turnDirection: TurnDirectionType;
 };
+type KernelType = {
+  kernelExists: boolean;
+  kernelMinimum: PointType;
+  kernelMaximum: PointType;
+};
 
 export class Polygon {
   //
@@ -24,8 +30,10 @@ export class Polygon {
   #pointWithYMax: PointType;
   #localMinimum: PointType[];
   #localMaximum: PointType[];
-  #kernelExists: boolean | undefined;
-  #kernelPerimeter: number | undefined;
+  #memoization: {
+    kernel?: KernelType;
+    kernelPerimeter?: number;
+  } = {};
 
   //
   //Init
@@ -66,41 +74,83 @@ export class Polygon {
     };
   };
 
+  #getNextIndex = (index: number, list: any[]) => (index === list.length - 1 ? 0 : index + 1);
+  #getPrevoiusIndex = (index: number, list: any[]) => (index === 0 ? list.length : index) - 1;
+  #checkNextSense = (index: number, points: PointType[]): 'up' | 'down' => {
+    const currentPoint = points[index];
+    const nextIndex = this.#getNextIndex(index, points);
+
+    if (getY(currentPoint) > getY(points[nextIndex])) return 'down';
+    else if (getY(currentPoint) < getY(points[nextIndex])) return 'up';
+    //it will become a loop if a line is provided
+    else return this.#checkNextSense(nextIndex, points);
+  };
+
+  #checkPreviousSense = (index: number, points: PointType[]): 'up' | 'down' => {
+    const currentPoint = points[index];
+    const prevoiusIndex = this.#getPrevoiusIndex(index, points);
+
+    if (getY(currentPoint) > getY(points[prevoiusIndex])) return 'up';
+    else if (getY(currentPoint) < getY(points[prevoiusIndex])) return 'down';
+    //it will become a loop if a line is provided
+    else return this.#checkPreviousSense(prevoiusIndex, points);
+  };
+
   #getLocalMinimumAndMaximum = (points: PointType[]) =>
     points.reduce(
       (vertices, currentPoint, index) => {
-        const prevoiusIndex = (index === 0 ? points.length : index) - 1;
-        const nextIndex = index === points.length - 1 ? 0 : index + 1;
+        const prevoiusIndex = this.#getPrevoiusIndex(index, points);
+        const nextIndex = this.#getNextIndex(index, points);
         const { turnDirection, vectorSense } = this.#getVertexData(
           points[prevoiusIndex],
           currentPoint,
           points[nextIndex],
         );
 
-        const extrema = ['up', 'right'].includes(vectorSense) ? 'localMaximum' : 'localMinimum';
-
         if (turnDirection === 'right') {
-          if (currentPoint[1] > Math.min(points[prevoiusIndex][1], points[nextIndex][1]))
-            if (vectorSense !== 'none')
+          if (vectorSense !== 'none') {
+            if (getY(currentPoint) > Math.max(getY(points[prevoiusIndex]), getY(points[nextIndex]))) {
               return {
                 ...vertices,
-                [extrema]: [...vertices[extrema], currentPoint],
+                localMaximum: [...vertices.localMaximum, currentPoint],
               };
-            else return vertices;
-          // TODO - is there any local maximum that fulfills following assumption?
-          // current y < min(prevoius y, next y)
-          else
-            return {
-              ...vertices,
-              localMinimum: [...vertices.localMinimum, currentPoint],
-            };
-        } else return vertices;
+            } else if (getY(currentPoint) < Math.min(getY(points[prevoiusIndex]), getY(points[nextIndex]))) {
+              return {
+                ...vertices,
+                localMinimum: [...vertices.localMinimum, currentPoint],
+              };
+            } else if (getY(currentPoint) === getY(points[nextIndex])) {
+              const nextSense = this.#checkNextSense(nextIndex, points);
+              if ((vectorSense === 'down' && nextSense === 'up') || (vectorSense === 'up' && nextSense === 'down')) {
+                const extrema = vectorSense === 'down' && nextSense === 'up' ? 'localMinimum' : 'localMaximum';
+                return {
+                  ...vertices,
+                  [extrema]: [...vertices[extrema], currentPoint],
+                };
+              }
+            } else if (getY(currentPoint) === getY(points[prevoiusIndex])) {
+              const previousSense = this.#checkPreviousSense(prevoiusIndex, points);
+              if (
+                (vectorSense === 'right' && previousSense === 'up') ||
+                (vectorSense === 'left' && previousSense === 'down')
+              ) {
+                const extrema = vectorSense === 'right' && previousSense === 'up' ? 'localMaximum' : 'localMinimum';
+                return {
+                  ...vertices,
+                  [extrema]: [...vertices[extrema], currentPoint],
+                };
+              }
+            }
+          }
+        }
+
+        return vertices;
       },
-      { localMinimum: [], localMaximum: [] } as { localMinimum: PointType[] | []; localMaximum: PointType[] | [] },
+      { localMinimum: [], localMaximum: [] } as { localMinimum: PointType[]; localMaximum: PointType[] },
     );
 
   #calculateDistance = (pointA: PointType, pointB: PointType): number =>
-    Math.sqrt(Math.pow(pointB[0] - pointA[0], 2) + Math.pow(pointB[1] - pointA[1], 2));
+    Math.sqrt(Math.pow(getX(pointB) - getX(pointA), 2) + Math.pow(getY(pointB) - getY(pointA), 2));
 
   #calculatePointLineDistance = ({
     linePointA,
@@ -111,89 +161,295 @@ export class Polygon {
     linePointB: PointType;
     point: PointType;
   }): number => {
-    const A = linePointB[1] - linePointA[1];
-    const B = linePointB[0] - linePointA[0];
-    return Math.abs(A * (linePointA[0] - point[0]) + B * (point[1] - linePointA[1])) / Math.sqrt(A * A + B * B);
+    const A = getY(linePointB) - getY(linePointA);
+    const B = getX(linePointB) - getX(linePointA);
+    return (
+      Math.abs(A * (getX(linePointA) - getX(point)) + B * (getY(point) - getY(linePointA))) / Math.sqrt(A * A + B * B)
+    );
   };
 
-  #calculatePerimeterOfASide = ({
+  #checkIfMinAndMaxAreNeighbours = (kernelMinimum: PointType, kernelMaximum: PointType) => {
+    const kernelMinimumIndex = this.points.findIndex(
+      ([x, y]) => x === getX(kernelMinimum) && y === getY(kernelMinimum),
+    );
+    const kernelMaximumIndex = this.points.findIndex(
+      ([x, y]) => x === getX(kernelMaximum) && y === getY(kernelMaximum),
+    );
+    return Math.abs(kernelMaximumIndex - kernelMinimumIndex) === 1;
+  };
+
+  #calculatePerimeterOfARightSide= ({
     pointsOnTheSide,
-    pointWithYMax,
-    pointWithYMin,
+    kernelMaximum,
+    kernelMinimum,
   }: {
     pointsOnTheSide: PointType[];
-    pointWithYMin: PointType;
-    pointWithYMax: PointType;
+    kernelMinimum: PointType;
+    kernelMaximum: PointType;
   }): number => {
-    const sortedPoints = pointsOnTheSide.sort((p1, p2) => p1[1] - p2[1]);
+    //no points on the side
+    if (pointsOnTheSide.length === 0) {
+      const areMinAndMaxNeighbours = this.#checkIfMinAndMaxAreNeighbours(kernelMinimum, kernelMaximum);
+    
+      const fourthQuarterPoints = areMinAndMaxNeighbours
+        ? [kernelMaximum]
+        : this.points.filter((p) => getX(p) > getX(kernelMaximum) && getY(p) < getY(kernelMaximum));
+      const firstQuarterPoints = areMinAndMaxNeighbours
+        ? [kernelMinimum]
+        : this.points.filter((p) => getX(p) > getX(kernelMinimum) && getY(p) > getY(kernelMinimum));
+      const borderLinePointA = fourthQuarterPoints[fourthQuarterPoints.length - 1];
+      const borderLinePointB = firstQuarterPoints[0];
+      const distanceFromYMaxToBorder = this.#calculatePointLineDistance({
+        linePointA: borderLinePointA || kernelMaximum,
+        linePointB: borderLinePointB || kernelMinimum,
+        point: kernelMaximum,
+      });
+      const distanceFromYMinToBorder = this.#calculatePointLineDistance({
+        linePointA: borderLinePointA || kernelMaximum,
+        linePointB: borderLinePointB || kernelMinimum,
+        point: kernelMinimum,
+      });
+      const perimeterPointAOnBorder = [
+        getX(kernelMaximum) + distanceFromYMaxToBorder,
+        getY(kernelMaximum),
+      ] as PointType;
+      const perimeterPointBOnBorder = [
+        getX(kernelMinimum) + distanceFromYMinToBorder,
+        getY(kernelMinimum),
+      ] as PointType;
+      const lengthOfBorder = this.#calculateDistance(perimeterPointAOnBorder, perimeterPointBOnBorder);
+      return lengthOfBorder + distanceFromYMaxToBorder + distanceFromYMinToBorder;
+    }
 
-    //TODO - add case for 0 points on the side
+    const sortedPoints = pointsOnTheSide.sort((p1, p2) => getY(p1) - getY(p2));
 
-    const perimeter: number = sortedPoints.reduce((perimeter, currentPoint, index) => {
+    const perimeter: number = sortedPoints.reduce((perimeter, currentPoint, index, array) => {
+      const indexInMainList = this.points.findIndex(([x, y]) => x === getX(currentPoint) && y === getY(currentPoint));
+      const getDistanceFromYMaxToBoder = () =>
+        this.#calculatePointLineDistance({
+          linePointA: this.points[this.#getPrevoiusIndex(indexInMainList, this.points)],
+          linePointB: currentPoint,
+          point: kernelMaximum,
+        });
+      const getDistanceFromYMinToBoder = () =>
+        this.#calculatePointLineDistance({
+          linePointA: this.points[this.#getNextIndex(indexInMainList, this.points)],
+          linePointB: currentPoint,
+          point: kernelMinimum,
+        });
+      const getDistanceFromPointToYMaxLine = (distanceFromYMaxToBoder: number) =>
+        this.#calculatePointLineDistance({
+          linePointA: kernelMaximum,
+          linePointB: [
+            getX(kernelMaximum) + distanceFromYMaxToBoder + 1,
+            getY(kernelMaximum),
+          ],
+          point: currentPoint,
+        });
+      const getDistanceFromPointToYMinLine = (distanceFromYMinToBoder: number) =>
+        this.#calculatePointLineDistance({
+          linePointA: kernelMinimum,
+          linePointB: [
+            getX(kernelMinimum) + distanceFromYMinToBoder + 1,
+            getY(kernelMinimum),
+          ],
+          point: currentPoint,
+        });
+
       // only one point on the side
       if (index === 0 && index === sortedPoints.length - 1) {
-        const indexInMainList = this.points.indexOf(currentPoint);
-        const pointWithYMaxLineDistance = this.#calculatePointLineDistance({
-          linePointA: this.points[indexInMainList - 1],
-          linePointB: currentPoint,
-          point: pointWithYMax,
-        });
-        const pointWithYMinLineDistance = this.#calculatePointLineDistance({
-          linePointA: this.points[indexInMainList + 1],
-          linePointB: currentPoint,
-          point: pointWithYMin,
-        });
-        const pointLineDistance1 = this.#calculatePointLineDistance({
-          linePointA: pointWithYMax,
-          linePointB: [pointWithYMax[0] + pointWithYMaxLineDistance + 1, pointWithYMax[1]],
-          point: currentPoint,
-        });
-        const pointLineDistance2 = this.#calculatePointLineDistance({
-          linePointA: pointWithYMin,
-          linePointB: [pointWithYMin[0] + pointWithYMinLineDistance + 1, pointWithYMin[1]],
-          point: currentPoint,
-        });
-        return (
-          perimeter + pointWithYMaxLineDistance + pointWithYMinLineDistance + pointLineDistance1 + pointLineDistance2
-        );
-        // last point on the side
-      } else if (index === sortedPoints.length - 1) {
-        if (currentPoint[1] === pointWithYMin[1])
-          return perimeter + this.#calculateDistance(pointWithYMin, currentPoint);
-        else {
-          const indexInMainList = this.points.indexOf(currentPoint);
-          const pointWithYMinLineDistance = this.#calculatePointLineDistance({
-            linePointA: this.points[indexInMainList + 1],
-            linePointB: currentPoint,
-            point: pointWithYMin,
-          });
-          const pointLineDistance = this.#calculatePointLineDistance({
-            linePointA: pointWithYMin,
-            linePointB: [pointWithYMin[0] + pointWithYMinLineDistance + 1, pointWithYMin[1]],
-            point: currentPoint,
-          });
-          return perimeter + pointWithYMinLineDistance + pointLineDistance;
+        const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+        const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+        if (this.#pointWithYMin === kernelMinimum) {
+          return (
+            perimeter +
+            distanceFromYMaxToBoder +
+            getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+            this.#calculateDistance(kernelMinimum, currentPoint)
+          );
         }
+        return (
+          perimeter +
+          distanceFromYMaxToBoder +
+          distanceFromYMinToBoder +
+          getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+          getDistanceFromPointToYMinLine(distanceFromYMinToBoder)
+        );
         // first point on the side
       } else if (index === 0) {
-        if (currentPoint[1] === pointWithYMax[1])
-          return perimeter + this.#calculateDistance(pointWithYMax, currentPoint);
-        else {
-          const indexInMainList = this.points.indexOf(currentPoint);
-          const pointWithYMaxLineDistance = this.#calculatePointLineDistance({
-            linePointA: this.points[indexInMainList - 1],
-            linePointB: currentPoint,
-            point: pointWithYMax,
-          });
-          const pointLineDistance = this.#calculatePointLineDistance({
-            linePointA: pointWithYMax,
-            linePointB: [pointWithYMax[0] + pointWithYMaxLineDistance + 1, pointWithYMax[1]],
-            point: currentPoint,
-          });
-          return perimeter + pointWithYMaxLineDistance + pointLineDistance;
-        }
+        if (getY(currentPoint) === getY(kernelMaximum)){
+          return perimeter + this.#calculateDistance(kernelMaximum, currentPoint)
+        } else {
+            const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+            return perimeter + distanceFromYMaxToBoder + getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder);
+        };
+        // last point on the side
+      } else if (index === sortedPoints.length - 1) {
+        const distanceToPreviousPoint = this.#calculateDistance(sortedPoints[index - 1], currentPoint);
+          if (getY(currentPoint) === getY(kernelMinimum)){
+            return perimeter + this.#calculateDistance(kernelMinimum, currentPoint) + distanceToPreviousPoint;
+          } else {
+            const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+            return (
+              perimeter +
+              distanceFromYMinToBoder +
+              getDistanceFromPointToYMinLine(distanceFromYMinToBoder) +
+              distanceToPreviousPoint
+            );
+          }
         // other points on the side
       } else {
+        return perimeter + this.#calculateDistance(sortedPoints[index - 1], currentPoint);
+      }
+    }, 0);
+    return perimeter;
+  };
+
+  #preparePointsOnLeftSide = (points: PointType[], kernelMaximum: PointType) => {
+    if(points.some(p => getY(p) === getY(kernelMaximum))){
+      const pointsOnLocalMaxYAxis = points.filter(p => getY(p) === getY(kernelMaximum));
+      const otherPoints = points.filter(p => getY(p) !== getY(kernelMaximum)).sort((p1, p2) =>  getY(p2) - getY(p1));
+
+      return [...otherPoints, ...pointsOnLocalMaxYAxis];
+
+    };
+    const sortedPoints = points.sort((p1, p2) =>  getY(p2) - getY(p1));
+    return sortedPoints;
+  };
+
+  #calculatePerimeterOfALeftSide = ({
+    pointsOnTheSide,
+    kernelMaximum,
+    kernelMinimum,
+  }: {
+    pointsOnTheSide: PointType[];
+    kernelMinimum: PointType;
+    kernelMaximum: PointType;
+  }): number => {
+    //no points on the side
+    if (pointsOnTheSide.length === 0) {
+      const areMinAndMaxNeighbours = this.#checkIfMinAndMaxAreNeighbours(kernelMinimum, kernelMaximum);
+
+      const thirdQuarterPoints = areMinAndMaxNeighbours
+        ? [kernelMaximum]
+        : this.points.filter((p) => getX(p) < getX(kernelMaximum) && getY(p) < getY(kernelMaximum));
+      const secondQuarterPoints = areMinAndMaxNeighbours
+        ? [kernelMinimum]
+        : this.points.filter((p) => getX(p) < getX(kernelMinimum) && getY(p) > getY(kernelMinimum));
+      const borderLinePointA = secondQuarterPoints[secondQuarterPoints.length - 1] || kernelMinimum;
+      const borderLinePointB = thirdQuarterPoints[0] || kernelMaximum;
+
+      const distanceFromYMinToBorder = this.#calculatePointLineDistance({
+        linePointA: borderLinePointA,
+        linePointB: borderLinePointB,
+        point: kernelMinimum,
+      });
+      const distanceFromYMaxToBorder = this.#calculatePointLineDistance({
+        linePointA: borderLinePointA,
+        linePointB: borderLinePointB,
+        point: kernelMaximum,
+      });
+      const perimeterPointAOnBorder = [
+        getX(kernelMinimum) - distanceFromYMaxToBorder,
+        getY(kernelMinimum),
+      ] as PointType;
+      const perimeterPointBOnBorder = [
+        getX(kernelMaximum) - distanceFromYMinToBorder,
+        getY(kernelMaximum),
+      ] as PointType;
+      const lengthOfBorder = this.#calculateDistance(perimeterPointAOnBorder, perimeterPointBOnBorder);
+
+      return lengthOfBorder + distanceFromYMaxToBorder + distanceFromYMinToBorder;
+    };
+
+    const sortedPoints = this.#preparePointsOnLeftSide(pointsOnTheSide, kernelMaximum);
+
+    const perimeter: number = sortedPoints.reduce((perimeter, currentPoint, index) => {
+      const indexInMainList = this.points.findIndex(([x, y]) => x === getX(currentPoint) && y === getY(currentPoint));
+      const getDistanceFromYMaxToBoder = () =>
+        this.#calculatePointLineDistance({
+          linePointA: this.points[this.#getNextIndex(indexInMainList, this.points)],
+          linePointB: currentPoint,
+          point: kernelMaximum,
+        });
+      const getDistanceFromYMinToBoder = () =>
+        this.#calculatePointLineDistance({
+          linePointA: this.points[this.#getPrevoiusIndex(indexInMainList, this.points)],
+          linePointB: currentPoint,
+          point: kernelMinimum,
+        });
+      const getDistanceFromPointToYMaxLine = (distanceFromYMaxToBoder: number) =>
+        this.#calculatePointLineDistance({
+          linePointA: kernelMaximum,
+          linePointB: [
+            getX(kernelMaximum) - distanceFromYMaxToBoder - 1,
+            getY(kernelMaximum),
+          ],
+          point: currentPoint,
+        });
+      const getDistanceFromPointToYMinLine = (distanceFromYMinToBoder: number) =>
+        this.#calculatePointLineDistance({
+          linePointA: kernelMinimum,
+          linePointB: [
+            getX(kernelMinimum) - distanceFromYMinToBoder - 1,
+            getY(kernelMinimum),
+          ],
+          point: currentPoint,
+        });
+
+      // only one point on the side
+      if (index === 0 && index === sortedPoints.length - 1) {
+        const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+        const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+        if (this.#pointWithYMin === kernelMinimum) {
+          return (
+            perimeter +
+            distanceFromYMaxToBoder +
+            getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+            this.#calculateDistance(kernelMinimum, currentPoint)
+          );
+        }
+        return (
+          perimeter +
+          distanceFromYMaxToBoder +
+          distanceFromYMinToBoder +
+          getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+          getDistanceFromPointToYMinLine(distanceFromYMinToBoder)
+        );
+      // first point on the side
+      }else if (index === 0) {
+        if (getY(currentPoint) === getY(kernelMinimum))
+          return perimeter + this.#calculateDistance(kernelMinimum, currentPoint);
+        else {
+            const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+            return perimeter + distanceFromYMinToBoder + getDistanceFromPointToYMinLine(distanceFromYMinToBoder);
+          }
+      // last point on the side
+      } else if (index === sortedPoints.length - 1) {
+          const distanceToPreviousPoint = this.#calculateDistance(sortedPoints[index - 1], currentPoint);
+          if (getY(currentPoint) === getY(kernelMaximum)){
+            return perimeter + this.#calculateDistance(kernelMaximum, currentPoint) + distanceToPreviousPoint;
+          }
+          else {
+            const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+            return (
+              perimeter +
+              distanceFromYMaxToBoder +
+              getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+              distanceToPreviousPoint
+            );
+        }
+     // other points on the side
+      } else {
+        if(
+            getY(currentPoint) === getY(kernelMaximum) 
+            && getY(sortedPoints[index - 1]) === getY(kernelMinimum)
+        ) {
+          const yDiff = getY(sortedPoints[index - 1]) - getY(currentPoint);
+          const xDiff = getX(currentPoint) - getX(sortedPoints[index - 1])
+          return perimeter + yDiff + xDiff;
+        };
+
         return perimeter + this.#calculateDistance(sortedPoints[index - 1], currentPoint);
       }
     }, 0);
@@ -203,8 +459,8 @@ export class Polygon {
   drawPolygon = () => {
     const data: Plot[] = [
       {
-        x: this.points.map((p) => p[0]).concat(this.points[0][0]),
-        y: this.points.map((p) => p[1]).concat(this.points[0][1]),
+        x: this.points.map((p) => getX(p)).concat(getX(this.points[0])),
+        y: this.points.map((p) => getY(p)).concat(getY(this.points[0])),
         type: 'scatter',
       },
     ];
@@ -217,53 +473,63 @@ export class Polygon {
   //Getters
   //
 
-  get kernelExists() {
-    if (this.#kernelExists === undefined) {
-      const pointWithYMax = this.#getMaxAndMinY({ points: this.#localMaximum }).yMax || this.#pointWithYMax;
-      const pointWithYMin = this.#getMaxAndMinY({ points: this.#localMinimum }).yMin || this.#pointWithYMin;
-      this.#kernelExists = pointWithYMin[1] >= pointWithYMax[1];
+  get kernel() {
+    if (this.#memoization.kernel === undefined) {
+      const kernelMaximum = this.#getMaxAndMinY({ points: this.#localMaximum }).yMax || this.#pointWithYMax;
+      const kernelMinimum = this.#getMaxAndMinY({ points: this.#localMinimum }).yMin || this.#pointWithYMin;
+
+      this.#memoization.kernel = {
+        kernelExists: getY(kernelMinimum) >= getY(kernelMaximum),
+        kernelMinimum,
+        kernelMaximum,
+      };
     }
-    return this.#kernelExists;
+    return this.#memoization.kernel;
   }
 
   get kernelPerimeter() {
-    if (!this.kernelExists) {
+    if (!this.kernel.kernelExists) {
       console.log("Kernel doesn't exist");
       return null;
     }
 
-    if (this.#kernelPerimeter === undefined) {
-      const pointWithYMax = this.#getMaxAndMinY({ points: this.#localMaximum }).yMax || this.#pointWithYMax;
-      const pointWithYMin = this.#getMaxAndMinY({ points: this.#localMinimum }).yMin || this.#pointWithYMin;
+    if (this.#memoization.kernelPerimeter === undefined) {
+      const { kernelMaximum, kernelMinimum } = this.kernel;
 
       const pointsWithinKernel = this.points.filter(
         (point) =>
-          point[1] >= pointWithYMax[1] &&
-          point[1] <= pointWithYMin[1] &&
-          point[0] !== pointWithYMax[0] &&
-          point[0] !== pointWithYMin[0],
+          getY(point) >= getY(kernelMaximum) &&
+          getY(point) <= getY(kernelMinimum) &&
+          getX(point) !== getX(kernelMaximum) &&
+          getX(point) !== getX(kernelMinimum),
       );
 
-      const pointsOnTheLeftSide = pointsWithinKernel.filter((point) => point[0] < pointWithYMax[0]);
-      const pointsOnTheRightSide = pointsWithinKernel.filter((point) => point[0] > pointWithYMax[0]);
+      const pointsOnTheLeftSide = pointsWithinKernel.filter((point) => getX(point) < getX(kernelMaximum));
+      const pointsOnTheRightSide = pointsWithinKernel.filter((point) => getX(point) > getX(kernelMaximum));
 
-      const perimeterOfTheLeftSide = this.#calculatePerimeterOfASide({
+      const perimeterOfTheLeftSide = this.#calculatePerimeterOfALeftSide({
         pointsOnTheSide: pointsOnTheLeftSide,
-        pointWithYMin,
-        pointWithYMax,
+        kernelMinimum,
+        kernelMaximum,
       });
-      const perimeterOfTheRightSide = this.#calculatePerimeterOfASide({
+      const perimeterOfTheRightSide = this.#calculatePerimeterOfARightSide({
         pointsOnTheSide: pointsOnTheRightSide,
-        pointWithYMin,
-        pointWithYMax,
+        kernelMinimum,
+        kernelMaximum,
       });
 
-      this.#kernelPerimeter = perimeterOfTheLeftSide + perimeterOfTheRightSide;
+      this.#memoization.kernelPerimeter = perimeterOfTheLeftSide + perimeterOfTheRightSide;
     }
-    return this.#kernelPerimeter;
+    return this.#memoization.kernelPerimeter;
   }
 }
 
-const polygon = new Polygon(testData[10]);
-console.log(polygon.kernelPerimeter);
+const polygon = new Polygon(testData[11]);
+const kernelExists = polygon.kernel.kernelExists;
+console.log(`
+Kernel exists: ${kernelExists}
+yMin | localMin: [${polygon.kernel.kernelMinimum}]
+yMax | localMax: [${polygon.kernel.kernelMaximum}]
+Perimeter of the kernel: ${polygon.kernelPerimeter}
+`);
 polygon.drawPolygon();
