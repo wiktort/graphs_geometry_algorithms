@@ -39,7 +39,7 @@ export class Polygon {
   //Init
   //
   constructor(readonly points: PointType[]) {
-    const { yMin, yMax } = this.#getMaxAndMinY({ points, globalY: true });
+    const { yMin, yMax } = this.#getPointsWithMaxAndMinY({ points, globalY: true });
     this.#pointWithYMin = yMin;
     this.#pointWithYMax = yMax;
 
@@ -51,7 +51,7 @@ export class Polygon {
   //
   // Methods
   //
-  #getMaxAndMinY = ({ points, globalY }: { points: PointType[]; globalY?: boolean }) => {
+  #getPointsWithMaxAndMinY = ({ points, globalY }: { points: PointType[]; globalY?: boolean }) => {
     const sortedPoints = [...points].sort((p1, p2) => p1[1] - p2[1]);
     return {
       yMin: globalY ? sortedPoints[points.length - 1] : sortedPoints[0],
@@ -475,8 +475,8 @@ export class Polygon {
 
   get kernel() {
     if (this.#memoization.kernel === undefined) {
-      const kernelMaximum = this.#getMaxAndMinY({ points: this.#localMaximum }).yMax || this.#pointWithYMax;
-      const kernelMinimum = this.#getMaxAndMinY({ points: this.#localMinimum }).yMin || this.#pointWithYMin;
+      const kernelMaximum = this.#getPointsWithMaxAndMinY({ points: this.#localMaximum }).yMax || this.#pointWithYMax;
+      const kernelMinimum = this.#getPointsWithMaxAndMinY({ points: this.#localMinimum }).yMin || this.#pointWithYMin;
 
       this.#memoization.kernel = {
         kernelExists: getY(kernelMinimum) >= getY(kernelMaximum),
