@@ -1,7 +1,7 @@
 import { plot, Plot } from 'nodeplotlib';
 import { PointType } from 'types';
 
-import { calculateDistance, getMaxAndMinX, getX, getY, sortPoints } from '../helpers.ts';
+import { calculateDistance, getX, getY, sortPoints } from '../helpers.ts';
 import { testData } from './testData';
 
 interface HalfsType {
@@ -18,11 +18,11 @@ interface ClosestPairType {
 
 const getSortedHalfs = (points: PointType[]): HalfsType => {
     const sortedPoints = sortPoints({points, axis: 'X'});
-    const {xMin, xMax} = getMaxAndMinX(points);
-    const middleX = (xMax - xMin) / 2 + xMin;
+    const middleIndex = Math.round(sortedPoints.length / 2);
+    const middleX = getX(sortedPoints[middleIndex]);
     return {
-        leftHalf: sortedPoints.filter(p => getX(p) <= middleX),
-        rightHalf: sortedPoints.filter(p => getX(p) >= middleX),
+        leftHalf: sortedPoints.slice(0, middleIndex),
+        rightHalf: sortedPoints.slice(middleIndex + 1, sortedPoints.length),
         middleX,
         sortedPoints
     };
@@ -103,4 +103,4 @@ const initFunction = (points: PointType[]) => {
     console.log(closestPair);
 };
 
-initFunction(testData[16]);
+initFunction(testData[18]);
