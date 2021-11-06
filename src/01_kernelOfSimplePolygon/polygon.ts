@@ -500,13 +500,11 @@ export class Polygon {
         (point) =>
           getY(point) >= getY(kernelMaximum) &&
           getY(point) <= getY(kernelMinimum) &&
-          getX(point) !== getX(kernelMaximum) &&
-          getX(point) !== getX(kernelMinimum),
+          point !== kernelMaximum && point !== kernelMinimum
       );
 
       const pointsOnTheLeftSide = pointsWithinKernel.filter((point) => getX(point) < getX(kernelMaximum));
       const pointsOnTheRightSide = pointsWithinKernel.filter((point) => getX(point) > getX(kernelMaximum));
-
       const perimeterOfTheLeftSide = this.#calculatePerimeterOfALeftSide({
         pointsOnTheSide: pointsOnTheLeftSide,
         kernelMinimum,
@@ -524,7 +522,7 @@ export class Polygon {
   }
 }
 
-const polygon = new Polygon(testData[11]);
+const polygon = new Polygon(testData[16]);
 const kernelExists = polygon.kernel.kernelExists;
 console.log(`
 Kernel exists: ${kernelExists}
