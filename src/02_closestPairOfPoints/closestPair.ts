@@ -1,7 +1,7 @@
 import { plot, Plot } from 'nodeplotlib';
 import { PointType } from 'types';
 
-import { calculateDistance, getX, getY, sortPoints } from '../helpers.ts';
+import { calculateDistance, getX, getY, sortPoints } from '../helpers';
 import { testData } from './testData';
 
 interface HalfsType {

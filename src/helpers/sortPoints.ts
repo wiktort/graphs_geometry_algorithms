@@ -1,10 +1,10 @@
-import { PointType } from 'types';
+import { AxisType, PointType } from 'types';
 
 import { getX, getY } from './getXY';
 
 interface Props {
     points: PointType[];
-    axis: 'X' | 'Y';
+    axis: AxisType;
     order?: 'ASC' | 'DESC';
 };
 

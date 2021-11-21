@@ -1,6 +1,6 @@
 import { Plot, plot } from 'nodeplotlib';
 
-import { getX, getY } from '../helpers.ts';
+import { getX, getY } from '../helpers';
 import { PointType } from '../types';
 import { testData } from './testData';
 
