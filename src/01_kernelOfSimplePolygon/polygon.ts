@@ -178,7 +178,7 @@ export class Polygon {
     return Math.abs(kernelMaximumIndex - kernelMinimumIndex) === 1;
   };
 
-  #calculatePerimeterOfARightSide= ({
+  #calculatePerimeterOfARightSide = ({
     pointsOnTheSide,
     kernelMaximum,
     kernelMinimum,
@@ -190,7 +190,7 @@ export class Polygon {
     //no points on the side
     if (pointsOnTheSide.length === 0) {
       const areMinAndMaxNeighbours = this.#checkIfMinAndMaxAreNeighbours(kernelMinimum, kernelMaximum);
-    
+
       const fourthQuarterPoints = areMinAndMaxNeighbours
         ? [kernelMaximum]
         : this.points.filter((p) => getX(p) > getX(kernelMaximum) && getY(p) < getY(kernelMaximum));
@@ -240,19 +240,13 @@ export class Polygon {
       const getDistanceFromPointToYMaxLine = (distanceFromYMaxToBoder: number) =>
         this.#calculatePointLineDistance({
           linePointA: kernelMaximum,
-          linePointB: [
-            getX(kernelMaximum) + distanceFromYMaxToBoder + 1,
-            getY(kernelMaximum),
-          ],
+          linePointB: [getX(kernelMaximum) + distanceFromYMaxToBoder + 1, getY(kernelMaximum)],
           point: currentPoint,
         });
       const getDistanceFromPointToYMinLine = (distanceFromYMinToBoder: number) =>
         this.#calculatePointLineDistance({
           linePointA: kernelMinimum,
-          linePointB: [
-            getX(kernelMinimum) + distanceFromYMinToBoder + 1,
-            getY(kernelMinimum),
-          ],
+          linePointB: [getX(kernelMinimum) + distanceFromYMinToBoder + 1, getY(kernelMinimum)],
           point: currentPoint,
         });
 
@@ -277,26 +271,26 @@ export class Polygon {
         );
         // first point on the side
       } else if (index === 0) {
-        if (getY(currentPoint) === getY(kernelMaximum)){
-          return perimeter + this.#calculateDistance(kernelMaximum, currentPoint)
+        if (getY(currentPoint) === getY(kernelMaximum)) {
+          return perimeter + this.#calculateDistance(kernelMaximum, currentPoint);
         } else {
-            const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
-            return perimeter + distanceFromYMaxToBoder + getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder);
-        };
+          const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+          return perimeter + distanceFromYMaxToBoder + getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder);
+        }
         // last point on the side
       } else if (index === sortedPoints.length - 1) {
         const distanceToPreviousPoint = this.#calculateDistance(sortedPoints[index - 1], currentPoint);
-          if (getY(currentPoint) === getY(kernelMinimum)){
-            return perimeter + this.#calculateDistance(kernelMinimum, currentPoint) + distanceToPreviousPoint;
-          } else {
-            const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
-            return (
-              perimeter +
-              distanceFromYMinToBoder +
-              getDistanceFromPointToYMinLine(distanceFromYMinToBoder) +
-              distanceToPreviousPoint
-            );
-          }
+        if (getY(currentPoint) === getY(kernelMinimum)) {
+          return perimeter + this.#calculateDistance(kernelMinimum, currentPoint) + distanceToPreviousPoint;
+        } else {
+          const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+          return (
+            perimeter +
+            distanceFromYMinToBoder +
+            getDistanceFromPointToYMinLine(distanceFromYMinToBoder) +
+            distanceToPreviousPoint
+          );
+        }
         // other points on the side
       } else {
         return perimeter + this.#calculateDistance(sortedPoints[index - 1], currentPoint);
@@ -306,14 +300,13 @@ export class Polygon {
   };
 
   #preparePointsOnLeftSide = (points: PointType[], kernelMaximum: PointType) => {
-    if(points.some(p => getY(p) === getY(kernelMaximum))){
-      const pointsOnLocalMaxYAxis = points.filter(p => getY(p) === getY(kernelMaximum));
-      const otherPoints = points.filter(p => getY(p) !== getY(kernelMaximum)).sort((p1, p2) =>  getY(p2) - getY(p1));
+    if (points.some((p) => getY(p) === getY(kernelMaximum))) {
+      const pointsOnLocalMaxYAxis = points.filter((p) => getY(p) === getY(kernelMaximum));
+      const otherPoints = points.filter((p) => getY(p) !== getY(kernelMaximum)).sort((p1, p2) => getY(p2) - getY(p1));
 
       return [...otherPoints, ...pointsOnLocalMaxYAxis];
-
-    };
-    const sortedPoints = points.sort((p1, p2) =>  getY(p2) - getY(p1));
+    }
+    const sortedPoints = points.sort((p1, p2) => getY(p2) - getY(p1));
     return sortedPoints;
   };
 
@@ -360,7 +353,7 @@ export class Polygon {
       const lengthOfBorder = this.#calculateDistance(perimeterPointAOnBorder, perimeterPointBOnBorder);
 
       return lengthOfBorder + distanceFromYMaxToBorder + distanceFromYMinToBorder;
-    };
+    }
 
     const sortedPoints = this.#preparePointsOnLeftSide(pointsOnTheSide, kernelMaximum);
 
@@ -381,19 +374,13 @@ export class Polygon {
       const getDistanceFromPointToYMaxLine = (distanceFromYMaxToBoder: number) =>
         this.#calculatePointLineDistance({
           linePointA: kernelMaximum,
-          linePointB: [
-            getX(kernelMaximum) - distanceFromYMaxToBoder - 1,
-            getY(kernelMaximum),
-          ],
+          linePointB: [getX(kernelMaximum) - distanceFromYMaxToBoder - 1, getY(kernelMaximum)],
           point: currentPoint,
         });
       const getDistanceFromPointToYMinLine = (distanceFromYMinToBoder: number) =>
         this.#calculatePointLineDistance({
           linePointA: kernelMinimum,
-          linePointB: [
-            getX(kernelMinimum) - distanceFromYMinToBoder - 1,
-            getY(kernelMinimum),
-          ],
+          linePointB: [getX(kernelMinimum) - distanceFromYMinToBoder - 1, getY(kernelMinimum)],
           point: currentPoint,
         });
 
@@ -416,39 +403,35 @@ export class Polygon {
           getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
           getDistanceFromPointToYMinLine(distanceFromYMinToBoder)
         );
-      // first point on the side
-      }else if (index === 0) {
+        // first point on the side
+      } else if (index === 0) {
         if (getY(currentPoint) === getY(kernelMinimum))
           return perimeter + this.#calculateDistance(kernelMinimum, currentPoint);
         else {
-            const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
-            return perimeter + distanceFromYMinToBoder + getDistanceFromPointToYMinLine(distanceFromYMinToBoder);
-          }
-      // last point on the side
-      } else if (index === sortedPoints.length - 1) {
-          const distanceToPreviousPoint = this.#calculateDistance(sortedPoints[index - 1], currentPoint);
-          if (getY(currentPoint) === getY(kernelMaximum)){
-            return perimeter + this.#calculateDistance(kernelMaximum, currentPoint) + distanceToPreviousPoint;
-          }
-          else {
-            const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
-            return (
-              perimeter +
-              distanceFromYMaxToBoder +
-              getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
-              distanceToPreviousPoint
-            );
+          const distanceFromYMinToBoder = getDistanceFromYMinToBoder();
+          return perimeter + distanceFromYMinToBoder + getDistanceFromPointToYMinLine(distanceFromYMinToBoder);
         }
-     // other points on the side
+        // last point on the side
+      } else if (index === sortedPoints.length - 1) {
+        const distanceToPreviousPoint = this.#calculateDistance(sortedPoints[index - 1], currentPoint);
+        if (getY(currentPoint) === getY(kernelMaximum)) {
+          return perimeter + this.#calculateDistance(kernelMaximum, currentPoint) + distanceToPreviousPoint;
+        } else {
+          const distanceFromYMaxToBoder = getDistanceFromYMaxToBoder();
+          return (
+            perimeter +
+            distanceFromYMaxToBoder +
+            getDistanceFromPointToYMaxLine(distanceFromYMaxToBoder) +
+            distanceToPreviousPoint
+          );
+        }
+        // other points on the side
       } else {
-        if(
-            getY(currentPoint) === getY(kernelMaximum) 
-            && getY(sortedPoints[index - 1]) === getY(kernelMinimum)
-        ) {
+        if (getY(currentPoint) === getY(kernelMaximum) && getY(sortedPoints[index - 1]) === getY(kernelMinimum)) {
           const yDiff = getY(sortedPoints[index - 1]) - getY(currentPoint);
-          const xDiff = getX(currentPoint) - getX(sortedPoints[index - 1])
+          const xDiff = getX(currentPoint) - getX(sortedPoints[index - 1]);
           return perimeter + yDiff + xDiff;
-        };
+        }
 
         return perimeter + this.#calculateDistance(sortedPoints[index - 1], currentPoint);
       }
@@ -500,7 +483,8 @@ export class Polygon {
         (point) =>
           getY(point) >= getY(kernelMaximum) &&
           getY(point) <= getY(kernelMinimum) &&
-          point !== kernelMaximum && point !== kernelMinimum
+          point !== kernelMaximum &&
+          point !== kernelMinimum,
       );
 
       const pointsOnTheLeftSide = pointsWithinKernel.filter((point) => getX(point) < getX(kernelMaximum));
