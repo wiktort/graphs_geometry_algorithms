@@ -3,7 +3,7 @@ import { PointType } from 'types';
 
 import { AreaType } from '03_kdTree/getArea';
 
-import { getX, getY } from './getXY';
+import { getX, getY } from '../helpers';
 
 export const drawData = (points: PointType[], { pMax, pMin }: AreaType, includedPoints: PointType[]) => {
   const data: Plot[] = [

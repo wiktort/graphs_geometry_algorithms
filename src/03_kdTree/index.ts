@@ -1,7 +1,7 @@
 import express from 'express';
 
-import { drawData } from '../helpers';
 import { buildKdTree } from './buildKdTree';
+import { drawData } from './drawData';
 import { getArea } from './getArea';
 import { kdTreeQuery } from './kdTreeQuery';
 import { testData } from './testData';
