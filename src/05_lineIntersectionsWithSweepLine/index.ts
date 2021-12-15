@@ -10,4 +10,4 @@ const init = (testCase: number) => {
   drawData(lines, intersections);
 };
 
-init(4);
+init(3);
