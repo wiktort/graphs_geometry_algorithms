@@ -1,9 +1,9 @@
-import memoize from 'fast-memoize';
+import moize from 'moize';
 import { PointType } from 'types';
 
 import { calculateDistance, removeItem } from '../helpers';
 
-const memoizedCalculateDistance = memoize(calculateDistance);
+const memoizedCalculateDistance = moize(calculateDistance);
 const getCenter = (
   cities: PointType[],
   centers: PointType[],

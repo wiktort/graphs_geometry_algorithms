@@ -28,8 +28,8 @@
     "@types/numjs": "^0.16.1",
     "@types/uniqid": "^5.3.1",
     "express": "^4.17.1",
-    "fast-memoize": "^2.5.2",
     "functional-red-black-tree": "^1.0.1",
+    "moize": "^6.1.0",
     "nodemon": "^2.0.14",
     "nodeplotlib": "^0.7.6",
     "uniqid": "^5.4.0"
