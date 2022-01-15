@@ -1,9 +1,7 @@
-import moize from 'moize';
 import { PointType } from 'types';
 
 import { calculateDistance, removeItem } from '../helpers';
 
-const memoizedCalculateDistance = moize(calculateDistance);
 const getCenter = (
   cities: PointType[],
   centers: PointType[],
@@ -15,7 +13,7 @@ const getCenter = (
   }
 
   const city = cities[0];
-  const currentDistance = Math.min(...centers.map(c => memoizedCalculateDistance(c, city)));
+  const currentDistance = Math.min(...centers.map(c => calculateDistance(c, city)));
   return getCenter(
     cities.slice(1),
     centers,
@@ -50,7 +48,7 @@ export const calculateRadius = (cities: PointType[], centers: PointType[]): numb
       ? helper(
           cities.slice(1),
           centers,
-          Math.max(maxDistance, Math.min(...centers.map(c => memoizedCalculateDistance(c, cities[0])))),
+          Math.max(maxDistance, Math.min(...centers.map(c => calculateDistance(c, cities[0])))),
         )
       : maxDistance;
   return helper(cities, centers);

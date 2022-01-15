@@ -1,9 +1,5 @@
-import moize from 'moize';
-
 import { calculateDistance, isNumber, removeItem } from '../helpers';
 import { City } from './City';
-
-const memoizedCalculateDistance = moize(calculateDistance);
 
 const getCenter = (cities: City[], centers: City[], nextCenter?: City, maxDistance: number = 0): City => {
   if (!cities.length) {
@@ -11,7 +7,7 @@ const getCenter = (cities: City[], centers: City[], nextCenter?: City, maxDistan
   }
 
   const city = cities[0];
-  const currentDistance = memoizedCalculateDistance(centers.slice(-1)[0].coordinates, city.coordinates);
+  const currentDistance = calculateDistance(centers.slice(-1)[0].coordinates, city.coordinates);
   city.optimizedDistance = isNumber(city.optimizedDistance)
     ? Math.min(city.optimizedDistance, currentDistance)
     : currentDistance;
